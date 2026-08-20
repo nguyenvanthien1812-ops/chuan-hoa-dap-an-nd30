@@ -1,0 +1,22 @@
+# Node / NPM
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Environment / Temp
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Editor directories
+.vscode/
+.idea/
+.system_generated/
+*.swp
+
+# Python cache
+__pycache__/
+*.pyc

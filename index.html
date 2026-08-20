@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExamScrambler & NĐ30 - Chuẩn Hóa Đề Thi & Văn Bản Hành Chính</title>
+  <meta name="description" content="Ứng dụng web chuẩn hóa đề thi trắc nghiệm, bóc tách đáp án, dồn dòng phương án và chuẩn hóa văn bản hành chính theo Nghị định 30/2020/NĐ-CP trực tiếp trên trình duyệt.">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Top Navigation / Header -->
+    <header class="app-header">
+      <a href="#" class="brand-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-file-shield"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">DocNormalizer Pro</h1>
+        </div>
+        <span class="brand-badge">NĐ 30 & Đề Thi</span>
+      </a>
+
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="theme-toggle-btn" title="Chuyển đổi giao diện Sáng / Tối">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero Title -->
+    <section class="hero-section">
+      <h2 class="hero-title">
+        Chuẩn Hóa Đề Thi & <span class="gradient-text">Văn Bản Hành Chính NĐ 30</span>
+      </h2>
+      <p class="hero-desc">
+        Hệ thống xử lý tài liệu Word (.docx) chuyên nghiệp 100% Client-Side: Bóc tách đáp án tự động, gắn dấu hoa thị (*), dồn dòng phương án thông minh và căn lề theo Nghị định 30/2020/NĐ-CP.
+      </p>
+    </section>
+
+    <!-- Tool Selector Navigation -->
+    <div class="tool-tabs-container">
+      <nav class="tool-tabs">
+        <button class="tool-tab active" data-tab="general">
+          <span class="tab-icon"><i class="fa-solid fa-graduation-cap"></i></span>
+          <span>Đề Thi Chung</span>
+        </button>
+        <button class="tool-tab" data-tab="english">
+          <span class="tab-icon"><i class="fa-solid fa-language"></i></span>
+          <span>Đề Tiếng Anh</span>
+        </button>
+        <button class="tool-tab" data-tab="nd30">
+          <span class="tab-icon"><i class="fa-solid fa-landmark"></i></span>
+          <span>Nghị Định 30</span>
+        </button>
+        <button class="tool-tab" data-tab="compactor">
+          <span class="tab-icon"><i class="fa-solid fa-table-columns"></i></span>
+          <span>Dồn Dòng Phương Án</span>
+        </button>
+        <button class="tool-tab" data-tab="templates">
+          <span class="tab-icon"><i class="fa-solid fa-folder-tree"></i></span>
+          <span>Biểu Mẫu NĐ 30</span>
+        </button>
+        <button class="tool-tab" data-tab="batch">
+          <span class="tab-icon"><i class="fa-solid fa-layer-group"></i></span>
+          <span>Xử Lý Hàng Loạt</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Main Workbench (Tabs: general, english, nd30, compactor, batch) -->
+    <main id="mainWorkbench" class="workbench-grid">
+      
+      <!-- Left Column: File Upload & Input Area -->
+      <section class="glass-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="icon"><i class="fa-solid fa-file-arrow-up"></i></span>
+            <span id="uploadCardTitle">Chọn file Word (.docx)</span>
+          </h3>
+          <span id="uploadBadge" class="brand-badge">Định dạng .docx</span>
+        </div>
+
+        <!-- Dropzone Container -->
+        <div id="dropzone" class="dropzone-container">
+          <div class="dropzone-icon">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <h4 class="dropzone-title">Kéo & thả file Word vào đây</h4>
+          <p class="dropzone-subtitle">hoặc nhấn nút bên dưới để chọn file từ máy tính</p>
+          
+          <input type="file" id="fileInput" class="file-input" accept=".docx">
+          <button type="button" class="btn-browse" onclick="document.getElementById('fileInput').click()">
+            <i class="fa-solid fa-folder-open"></i> Chọn file Word
+          </button>
+        </div>
+
+        <!-- Selected File Preview Container -->
+        <div id="fileListContainer" class="file-list" style="display: none;">
+          <!-- Items will be injected dynamically via JS -->
+        </div>
+
+        <!-- Progress Indicator -->
+        <div id="progressBox" class="progress-box">
+          <div class="progress-header">
+            <span id="progressStatus">Đang xử lý...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="progressBarFill" class="progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- Action Button Panel -->
+        <div class="action-panel">
+          <button id="btnProcess" class="btn-primary-action" disabled>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span id="btnProcessText">Bắt Đầu Chuẩn Hóa</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Configurations & Options Panel -->
+      <section class="glass-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="icon"><i class="fa-solid fa-sliders"></i></span>
+            <span id="configCardTitle">Tùy Chọn Chuẩn Hóa</span>
+          </h3>
+          <span class="brand-badge" id="modeBadge">Đề Thi Chung</span>
+        </div>
+
+        <div class="card-body">
+          
+          <!-- TAB 1: General Exam Options -->
+          <div id="optGeneral" class="options-stack">
+            <div class="option-group-title">Nhận dạng đáp án & Cấu trúc</div>
+            
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Tự động quét bảng đáp án cuối đề</span>
+                <span class="option-desc">Trích xuất bảng đáp án cuối đề, gắn dấu * vào đáp án đúng và xóa bảng đáp án</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="genAutoKey" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Nhận dạng In đậm / Gạch chân / Chữ đỏ làm đáp án đúng</span>
+                <span class="option-desc">Gắn dấu * vào phương án in đậm/đỏ nếu file không có bảng đáp án ở cuối đề</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="genBoldAsCorrect">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-group-title">Bố cục phương án trắc nghiệm</div>
+            
+            <div class="layout-selector-grid">
+              <label class="layout-pill active">
+                <input type="radio" name="genChoiceLayout" value="auto" checked>
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title"><i class="fa-solid fa-bolt"></i> Auto 4-2-1</span>
+                  <span class="layout-pill-desc">Tự động đo độ dài</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="genChoiceLayout" value="4_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">4 Phương án / dòng</span>
+                  <span class="layout-pill-desc">Gộp gọn A, B, C, D</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="genChoiceLayout" value="2_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">2 Phương án / dòng</span>
+                  <span class="layout-pill-desc">2 dòng A-B và C-D</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="genChoiceLayout" value="split">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">1 Phương án / dòng</span>
+                  <span class="layout-pill-desc">Tách mỗi ý 1 dòng</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB 2: English Exam Options -->
+          <div id="optEnglish" class="options-stack" style="display: none;">
+            <div class="option-group-title">Chuẩn hóa đề Tiếng Anh chuyên sâu</div>
+            
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Tự động bóc tách đáp án Tiếng Anh</span>
+                <span class="option-desc">Gắn dấu * vào phương án đúng A/B/C/D theo bảng đáp án tiếng Anh</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="engAutoKey" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Nhận dạng phương án In đậm / Gạch chân</span>
+                <span class="option-desc">Áp dụng khi đề tiếng Anh đánh dấu đáp án trực tiếp trong câu hỏi</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="engBoldAsCorrect">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-group-title">Bố cục câu hỏi tiếng Anh</div>
+            
+            <div class="layout-selector-grid">
+              <label class="layout-pill active">
+                <input type="radio" name="engChoiceLayout" value="auto" checked>
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title"><i class="fa-solid fa-bolt"></i> Auto 4-2-1</span>
+                  <span class="layout-pill-desc">Tự động tối ưu độ dài</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="engChoiceLayout" value="4_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">4 Phương án / dòng</span>
+                  <span class="layout-pill-desc">Gộp gọn A, B, C, D</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="engChoiceLayout" value="2_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">2 Phương án / dòng</span>
+                  <span class="layout-pill-desc">2 dòng A-B và C-D</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="engChoiceLayout" value="split">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">1 Phương án / dòng</span>
+                  <span class="layout-pill-desc">Tách mỗi ý 1 dòng</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB 3: Decree 30 Admin Doc Options -->
+          <div id="optNd30" class="options-stack" style="display: none;">
+            <div class="option-group-title">Quy chuẩn thể thức Nghị định 30/2020/NĐ-CP</div>
+            
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Căn lề khổ giấy A4 chuẩn NĐ 30</span>
+                <span class="option-desc">Lề trên 2.0cm, dưới 2.0cm, trái 3.0cm, phải 1.5cm</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30Margin" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Đánh số trang tự động ở đầu trang</span>
+                <span class="option-desc">Số Ả Rập, phông Times New Roman 13pt, căn giữa đầu trang, không đánh số trang 1</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30PageNum" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Định dạng Quốc hiệu, Tiêu đề & Đề mục</span>
+                <span class="option-desc">Chuẩn hóa Chương, Mục, Điều, Tiêu đề văn bản theo quy định NĐ 30</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30Headings" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Căn chỉnh đoạn văn & Thụt đầu dòng</span>
+                <span class="option-desc">Căn đều 2 bên, thụt đầu dòng 1.0cm, giãn đoạn 6pt, giãn dòng 1.2</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30Paragraph" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Đồng bộ phông chữ Times New Roman</span>
+                <span class="option-desc">Chuẩn hóa toàn bộ thân văn bản và bảng biểu về Times New Roman (13/14pt)</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30Font" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-group-title">Bác sĩ văn bản & Chuyển mã phông</div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Chuyển mã phông cũ (.VnTime, VNI) sang Unicode</span>
+                <span class="option-desc">Tự động phát hiện và chuyển phông TCVN3 / VNI về Times New Roman Unicode chuẩn</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30ConvertFonts" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Bác sĩ văn bản: Sửa lỗi dấu câu & khoảng trắng</span>
+                <span class="option-desc">Sửa khoảng trắng trước/sau dấu câu (.,:;?!), chuẩn hóa dấu ngoặc và khoảng cách từ</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30CleanPunctuation" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="option-item">
+              <div class="option-label-group">
+                <span class="option-label">Xóa dòng trắng & trang trắng thừa ở cuối</span>
+                <span class="option-desc">Dọn dẹp các đoạn văn rỗng liên tiếp và trang trắng vô nghĩa ở cuối tài liệu</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="nd30RemoveEmptyParas" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB 4: Choice Compactor Only Options -->
+          <div id="optCompactor" class="options-stack" style="display: none;">
+            <div class="option-group-title">Chế độ dồn dòng độc lập</div>
+            <div class="layout-selector-grid" style="grid-template-columns: 1fr;">
+              <label class="layout-pill active">
+                <input type="radio" name="compactorMode" value="auto" checked>
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Tự động thông minh (Auto 4-2-1)</span>
+                  <span class="layout-pill-desc">Phân tích độ dài trực quan của chữ, công thức toán và hình ảnh</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="compactorMode" value="4_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Gộp 4 phương án / dòng</span>
+                  <span class="layout-pill-desc">Xếp A, B, C, D trên 1 dòng với Tab Stop chuẩn</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="compactorMode" value="2_per_line">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Gộp 2 phương án / dòng</span>
+                  <span class="layout-pill-desc">Xếp 2 dòng: A-B và C-D</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="compactorMode" value="split">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Tách riêng 1 phương án / dòng</span>
+                  <span class="layout-pill-desc">Tách mỗi phương án nằm trên 1 dòng riêng biệt</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB 5: Batch Processing Options -->
+          <div id="optBatch" class="options-stack" style="display: none;">
+            <div class="option-group-title">Cấu hình xử lý hàng loạt</div>
+            
+            <div class="layout-selector-grid" style="grid-template-columns: 1fr;">
+              <label class="layout-pill active">
+                <input type="radio" name="batchEngine" value="general" checked>
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Chuẩn hóa Đề Thi Chung</span>
+                  <span class="layout-pill-desc">Quét đáp án + Gắn dấu * + Auto 4-2-1</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="batchEngine" value="english">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Chuẩn hóa Đề Tiếng Anh</span>
+                  <span class="layout-pill-desc">Bóc tách bài đọc + True/False + Auto 4-2-1</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="batchEngine" value="nd30">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Chuẩn hóa Văn Bản NĐ 30</span>
+                  <span class="layout-pill-desc">Căn lề A4 + Đánh số trang + Font Times 13/14pt</span>
+                </div>
+              </label>
+              <label class="layout-pill">
+                <input type="radio" name="batchEngine" value="compactor">
+                <div class="layout-pill-content">
+                  <span class="layout-pill-title">Chỉ Dồn Dòng Phương Án</span>
+                  <span class="layout-pill-desc">Dồn dòng Auto 4-2-1 cho toàn bộ file</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Full-Width Results Display Section -->
+      <section id="resultsCard" class="glass-card full-width-card" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="icon" style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i></span>
+            <span>Kết Quả Xử Lý File</span>
+          </h3>
+          <span class="brand-badge" id="resTimeBadge">0.00s</span>
+        </div>
+
+        <div class="results-content">
+          <!-- Summary Metrics -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-num" id="statKeysFound">—</span>
+              <span class="stat-name">Đáp án tìm thấy</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num" id="statCompacted">—</span>
+              <span class="stat-name">Câu hỏi đã dồn dòng</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num" id="statStatus" style="color: var(--accent-emerald);">Thành công</span>
+              <span class="stat-name">Trạng thái xử lý</span>
+            </div>
+          </div>
+
+          <!-- Answer Key Inspector (if any) -->
+          <div id="keysInspectorContainer" class="keys-inspector" style="display: none;">
+            <div class="keys-section-title"><i class="fa-solid fa-key"></i> Bảng Đáp Án Đã Bóc Tách & Gắn Sao (*):</div>
+            <div id="keysBadgeGrid" class="keys-grid"></div>
+          </div>
+
+          <!-- Download Action Button -->
+          <button id="btnDownload" class="btn-download-result">
+            <i class="fa-solid fa-download"></i> Tải Về File Chuẩn Hóa (.docx)
+          </button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Template Library View (Tab: templates) -->
+    <section id="templatesView" class="templates-section" style="display: none;">
+      <div class="section-header-wrap">
+        <h3 class="section-title">
+          <i class="fa-solid fa-folder-open gradient-text"></i> Thư Viện Biểu Mẫu Hành Chính Chuẩn NĐ 30/2020/NĐ-CP
+        </h3>
+        <p class="section-subtitle">
+          Toàn bộ biểu mẫu được thiết lập sẵn khổ giấy A4, căn lề chuẩn (2.0 - 2.0 - 3.0 - 1.5 cm), phông Times New Roman 13-14pt và bảng Quốc hiệu đúng quy cách. Bấm để tải file Word (.docx) về máy!
+        </p>
+      </div>
+
+      <div id="templateCardsGrid" class="template-grid">
+        <!-- Template items injected dynamically by app.js -->
+      </div>
+    </section>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>DocNormalizer Pro &copy; 2026. Tích hợp Chuẩn Hóa Đề Thi & Văn Bản Hành Chính NĐ 30/2020/NĐ-CP.</p>
+      <p>Bảo mật 100% Client-Side &bull; Sẵn sàng triển khai Netlify / GitHub Pages &bull; Hoạt động ngoại tuyến (Offline).</p>
+    </footer>
+
+  </div>
+
+  <!-- Local and CDN Fallback Scripts -->
+  <script src="js/lib/jszip.min.js"></script>
+  <script>
+    if (typeof JSZip === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');
+    }
+  </script>
+  
+  <script src="js/lib/file-saver.min.js"></script>
+  <script>
+    if (typeof saveAs === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"><\/script>');
+    }
+  </script>
+
+  <!-- Core Normalizer Engine Modules -->
+  <script src="js/core/xml_utils.js"></script>
+  <script src="js/core/text_cleaner.js"></script>
+  <script src="js/core/template_generator.js"></script>
+  <script src="js/core/choice_compactor.js"></script>
+  <script src="js/core/normalizer.js"></script>
+  <script src="js/core/english_normalizer.js"></script>
+  <script src="js/core/nd30_normalizer.js"></script>
+
+  <!-- Application Controller -->
+  <script src="js/app.js"></script>
+
+</body>
+</html>

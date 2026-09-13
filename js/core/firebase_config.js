@@ -11,12 +11,13 @@
 
     // 2. Cấu hình Firebase mặc định (Bạn có thể dán thông tin từ Firebase Console vào đây hoặc nhập qua giao diện Web)
     const DEFAULT_FIREBASE_CONFIG = {
-        apiKey: "",
-        authDomain: "",
-        projectId: "",
-        storageBucket: "",
-        messagingSenderId: "",
-        appId: ""
+        apiKey: "AIzaSyDlI5L2wx0s-ZqBs8coxeXpJmSctZdR8l8",
+        authDomain: "chuan-hoa-dap-an-nd30.firebaseapp.com",
+        projectId: "chuan-hoa-dap-an-nd30",
+        storageBucket: "chuan-hoa-dap-an-nd30.firebasestorage.app",
+        messagingSenderId: "335548189735",
+        appId: "1:335548189735:web:8dbf61064c4ea7f7cf1202",
+        measurementId: "G-NCK8PWJLW8"
     };
 
     const STORAGE_KEY = "docnormalizer_firebase_config";

@@ -94,6 +94,107 @@ def _has_heavy_content(p: Paragraph) -> bool:
     return False
 
 
+def _is_paragraph_empty(p: Paragraph) -> bool:
+    """Kiểm tra xem paragraph có hoàn toàn rỗng hay không (không text, không ảnh, không math)."""
+    text = p.text.strip()
+    if text:
+        return False
+    p_elem = p._element
+    if p_elem.findall('.//' + qn('w:drawing')):
+        return False
+    if p_elem.findall('.//' + qn('w:pict')):
+        return False
+    if p_elem.findall('.//' + qn('m:oMath')):
+        return False
+    if p_elem.findall('.//' + qn('w:object')):
+        return False
+    return True
+
+
+def _split_paragraphs_at_br(doc: Document):
+    """Tách tất cả các ngắt dòng mềm <w:br/> thành các paragraph <w:p> độc lập."""
+    for p in list(doc.paragraphs):
+        p_elem = p._element
+        runs = p_elem.findall('.//' + qn('w:r'))
+        has_br = any(len(r.findall('.//' + qn('w:br'))) > 0 for r in runs)
+        if not has_br:
+            continue
+
+        parent = p_elem.getparent()
+        if parent is None:
+            continue
+
+        pPr = p_elem.find(qn('w:pPr'))
+        new_paras = []
+        curr_p = OxmlElement('w:p')
+        if pPr is not None:
+            curr_p.append(copy.deepcopy(pPr))
+        new_paras.append(curr_p)
+
+        for child in list(p_elem):
+            if child.tag == qn('w:pPr'):
+                continue
+            if child.tag == qn('w:r'):
+                brs = child.findall(qn('w:br'))
+                if not brs:
+                    curr_p.append(child)
+                else:
+                    rPr = child.find(qn('w:rPr'))
+                    curr_r = OxmlElement('w:r')
+                    if rPr is not None:
+                        curr_r.append(copy.deepcopy(rPr))
+                    curr_p.append(curr_r)
+
+                    for rc in list(child):
+                        if rc.tag == qn('w:rPr'):
+                            continue
+                        if rc.tag == qn('w:br'):
+                            curr_p = OxmlElement('w:p')
+                            if pPr is not None:
+                                curr_p.append(copy.deepcopy(pPr))
+                            new_paras.append(curr_p)
+
+                            curr_r = OxmlElement('w:r')
+                            if rPr is not None:
+                                curr_r.append(copy.deepcopy(rPr))
+                            curr_p.append(curr_r)
+                        else:
+                            curr_r.append(rc)
+            else:
+                curr_p.append(child)
+
+        for np in new_paras:
+            p_elem.addprevious(np)
+        parent.remove(p_elem)
+
+
+def _convert_choice_tables_to_paragraphs(doc: Document):
+    """Chuyển đổi bảng chứa phương án trắc nghiệm thành các đoạn văn riêng biệt."""
+    CHOICE_LABEL_RE = re.compile(r'^\s*(?:\()?([A-Ha-h])\s*[.:)/\-]\s*')
+    tables_to_process = []
+    for tbl in list(doc.tables):
+        choice_cells_count = 0
+        total_cells = 0
+        for row in tbl.rows:
+            for cell in row.cells:
+                total_cells += 1
+                if CHOICE_LABEL_RE.search(cell.text.strip()):
+                    choice_cells_count += 1
+        if choice_cells_count >= 2 and choice_cells_count >= total_cells * 0.5:
+            tables_to_process.append(tbl)
+
+    for tbl in tables_to_process:
+        tbl_elem = tbl._element
+        parent = tbl_elem.getparent()
+        if parent is None:
+            continue
+        for row in tbl.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    tbl_elem.addprevious(p._element)
+        parent.remove(tbl_elem)
+
+
 def _get_paragraph_estimated_length(p: Paragraph) -> int:
     """
     Ước lượng độ dài trực quan của paragraph theo số ký tự tương đương.
@@ -447,6 +548,16 @@ def _decide_group_layout(paras: List[Paragraph], mode: str) -> List[List[Paragra
             return [[p] for p in paras]
 
 
+def _clean_empty_paragraphs(doc: Document):
+    """Xóa bỏ triệt để tất cả các đoạn văn rỗng rác (không text, không ảnh, không math)."""
+    for p in list(doc.paragraphs):
+        if _is_paragraph_empty(p):
+            p_elem = p._element
+            parent = p_elem.getparent()
+            if parent is not None:
+                parent.remove(p_elem)
+
+
 def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[int, int]:
     """
     Quét toàn bộ tài liệu Word và dồn dòng các phương án trắc nghiệm theo layout_mode.
@@ -458,21 +569,37 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
     Returns:
         (total_groups_found, total_groups_compacted)
     """
+    # 1. Chuyển đổi bảng trắc nghiệm thành paragraph
+    _convert_choice_tables_to_paragraphs(doc)
+
+    # 2. Tách các ngắt dòng mềm <w:br/> thành paragraph riêng
+    _split_paragraphs_at_br(doc)
+
+    # 3. Dọn dẹp triệt để tất cả các dòng trống rác xen kẽ
+    _clean_empty_paragraphs(doc)
+
     if layout_mode in ("split", "1_per_line"):
-        logger.info("Chế độ bố cục là 'split' / '1_per_line' - không thực hiện dồn dòng.")
+        logger.info("Chế độ bố cục là 'split' / '1_per_line' - đã dọn dẹp dòng trống, không thực hiện dồn dòng.")
         return 0, 0
 
     all_paras = list(doc.paragraphs)
     
     # Tìm các chuỗi phương án liên tiếp
-    # Mỗi group là một tuple: (is_lower, [Paragraph, Paragraph, ...])
+    # Mỗi group là một tuple: (is_lower, [Paragraph, ...], [empty_paras])
     groups = []
     current_group = []
+    current_empty_paras = []
     current_is_lower = False
     current_expected_idx = 0
     current_parent = None
 
     for p in all_paras:
+        # Nếu paragraph hoàn toàn rỗng do ngắt dòng kép:
+        if _is_paragraph_empty(p):
+            if current_group:
+                current_empty_paras.append(p)
+            continue
+
         label, is_lower, idx = _extract_choice_label_info(p)
         p_parent = p._element.getparent()
 
@@ -489,7 +616,8 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
             else:
                 # Nếu đã có nhóm trước đó >= 2 phương án, lưu lại
                 if len(current_group) >= 2:
-                    groups.append((current_is_lower, current_group))
+                    groups.append((current_is_lower, current_group, current_empty_paras))
+                current_empty_paras = []
                 
                 # Bắt đầu nhóm mới nếu là phương án đầu tiên (A hoặc a)
                 if idx == 0:
@@ -502,17 +630,24 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
                     current_parent = None
         else:
             if len(current_group) >= 2:
-                groups.append((current_is_lower, current_group))
+                groups.append((current_is_lower, current_group, current_empty_paras))
             current_group = []
+            current_empty_paras = []
             current_parent = None
 
     if len(current_group) >= 2:
-        groups.append((current_is_lower, current_group))
+        groups.append((current_is_lower, current_group, current_empty_paras))
 
     total_groups = len(groups)
     compacted_count = 0
 
-    for is_lower, paras in groups:
+    for is_lower, paras, empty_paras in groups:
+        # Dọn dẹp các paragraph rỗng xen kẽ
+        for ep in empty_paras:
+            ep_parent = ep._element.getparent()
+            if ep_parent is not None:
+                ep_parent.remove(ep._element)
+
         # Xác định cách chia dòng cho nhóm này
         rows = _decide_group_layout(paras, layout_mode)
         

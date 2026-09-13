@@ -145,6 +145,24 @@ def convert_choice_tables_to_paragraphs(doc):
         parent.remove(tbl_elem)
 
 
+def clean_empty_paragraphs(doc: Document):
+    """Xóa bỏ triệt để các đoạn văn rỗng rác (không text, không ảnh, không math)."""
+    for p in list(doc.paragraphs):
+        if not p.text.strip():
+            p_elem = p._element
+            if p_elem.findall('.//' + qn('w:drawing')):
+                continue
+            if p_elem.findall('.//' + qn('w:pict')):
+                continue
+            if p_elem.findall('.//' + qn('m:oMath')):
+                continue
+            if p_elem.findall('.//' + qn('w:object')):
+                continue
+            parent = p_elem.getparent()
+            if parent is not None:
+                parent.remove(p_elem)
+
+
 # Các biểu thức chính quy (Regex) để nhận dạng
 # Nhận dạng Phần/Part: Phần I, Phần 1, Part 1, 2. Chọn Đ (Đúng), 3. Trắc nghiệm trả lời ngắn
 QUESTION_RE = re.compile(r'^(Câu|Question|Bài|câu|bài)\s*(hỏi\s+)?(\d+)\s*(?:\([^)]*\))?\s*[:.\-)?\s]?', re.IGNORECASE)
@@ -889,6 +907,9 @@ def normalize_docx(input_path: str, output_path: str, options: dict) -> Tuple[bo
         # 0. Chuyển đổi các bảng chứa các phương án trắc nghiệm thành đoạn văn
         convert_choice_tables_to_paragraphs(doc)
 
+        # 0.5. Dọn dẹp triệt để các đoạn văn rỗng rác (tránh cách dòng thừa)
+        clean_empty_paragraphs(doc)
+
         # 1. Trích xuất và xóa bảng đáp án ở cuối đề
         auto_key = options.get("auto_key", True)
         answer_keys = {}
@@ -1093,7 +1114,7 @@ def normalize_docx(input_path: str, output_path: str, options: dict) -> Tuple[bo
         choice_layout = options.get("choice_layout", "split")
         compacted_msg = ""
         if choice_layout and choice_layout != "split":
-            from app.core.choice_compactor import compact_document_choices
+            from choice_compactor import compact_document_choices
             total_g, compacted_count = compact_document_choices(doc, choice_layout)
             if compacted_count > 0:
                 compacted_msg = f" Đã dồn dòng {compacted_count} câu hỏi."

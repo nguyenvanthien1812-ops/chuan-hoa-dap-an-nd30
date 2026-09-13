@@ -1442,7 +1442,7 @@ def normalize_english_docx(input_path: str, output_path: str, options: dict) -> 
         choice_layout = options.get("choice_layout", "split")
         compacted_msg = ""
         if choice_layout and choice_layout != "split":
-            from app.core.choice_compactor import compact_document_choices
+            from choice_compactor import compact_document_choices
             total_g, compacted_count = compact_document_choices(doc, choice_layout)
             if compacted_count > 0:
                 compacted_msg = f" Đã dồn dòng {compacted_count} câu hỏi."

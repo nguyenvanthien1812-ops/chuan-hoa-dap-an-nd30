@@ -131,6 +131,26 @@
         }
     }
 
+    function cleanEmptyParagraphs(xmlDoc) {
+        const body = getChildByTagName(xmlDoc.documentElement, "body");
+        if (!body) return;
+
+        const paras = Array.from(body.getElementsByTagNameNS(NS.w, "p"));
+        for (let i = 0; i < paras.length; i++) {
+            const p = paras[i];
+            const text = getParagraphText(p).trim();
+            if (text.length > 0) continue;
+            if (findDescendants(p, "drawing").length > 0) continue;
+            if (findDescendants(p, "pict").length > 0) continue;
+            if (findDescendants(p, "oMath").length > 0) continue;
+            if (findDescendants(p, "object").length > 0) continue;
+
+            if (p.parentNode) {
+                p.parentNode.removeChild(p);
+            }
+        }
+    }
+
     function isShortAnswerValue(val) {
         if (!val) return false;
         const valClean = val.trim().toUpperCase();
@@ -853,6 +873,7 @@
 
         splitParagraphsAtBr(xmlDoc);
         convertChoiceTablesToParagraphs(xmlDoc);
+        cleanEmptyParagraphs(xmlDoc);
 
         let answerKeys = {};
         let keyCount = 0;

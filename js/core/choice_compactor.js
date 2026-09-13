@@ -28,6 +28,127 @@
     const TAB_STOPS_2_COLS = [4500];             // ~7.94cm
     const TAB_STOPS_3_COLS = [2900, 5800];       // ~5.11cm, ~10.23cm
 
+    function isParagraphEmpty(pNode) {
+        const text = getParagraphText(pNode).trim();
+        if (text.length > 0) return false;
+        if (findDescendants(pNode, "drawing").length > 0) return false;
+        if (findDescendants(pNode, "pict").length > 0) return false;
+        if (findDescendants(pNode, "oMath").length > 0) return false;
+        if (findDescendants(pNode, "object").length > 0) return false;
+        return true;
+    }
+
+    function splitParagraphsAtBr(xmlDoc) {
+        const body = getChildByTagName(xmlDoc.documentElement, "body");
+        if (!body) return;
+
+        const paras = Array.from(body.getElementsByTagNameNS(NS.w, "p"));
+        for (let i = 0; i < paras.length; i++) {
+            const pElem = paras[i];
+            const runs = getChildrenByTagName(pElem, "r");
+            let hasBr = false;
+            for (let r = 0; r < runs.length; r++) {
+                if (getChildByTagName(runs[r], "br")) {
+                    hasBr = true;
+                    break;
+                }
+            }
+
+            if (!hasBr) continue;
+            const parent = pElem.parentNode;
+            if (!parent) continue;
+
+            const pPr = getChildByTagName(pElem, "pPr");
+            const newParas = [];
+            let currentP = createWordElement(xmlDoc, "p");
+            if (pPr) currentP.appendChild(pPr.cloneNode(true));
+            newParas.push(currentP);
+
+            const children = Array.from(pElem.childNodes);
+            for (let c = 0; c < children.length; c++) {
+                const child = children[c];
+                if (child.localName === "pPr") continue;
+                if (child.localName === "r") {
+                    const brs = getChildrenByTagName(child, "br");
+                    if (brs.length === 0) {
+                        currentP.appendChild(child.cloneNode(true));
+                    } else {
+                        const rPr = getChildByTagName(child, "rPr");
+                        let currentR = createWordElement(xmlDoc, "r");
+                        if (rPr) currentR.appendChild(rPr.cloneNode(true));
+                        currentP.appendChild(currentR);
+
+                        const rChildren = Array.from(child.childNodes);
+                        for (let rc = 0; rc < rChildren.length; rc++) {
+                            const rChild = rChildren[rc];
+                            if (rChild.localName === "rPr") continue;
+                            if (rChild.localName === "br") {
+                                currentP = createWordElement(xmlDoc, "p");
+                                if (pPr) currentP.appendChild(pPr.cloneNode(true));
+                                newParas.push(currentP);
+
+                                currentR = createWordElement(xmlDoc, "r");
+                                if (rPr) currentR.appendChild(rPr.cloneNode(true));
+                                currentP.appendChild(currentR);
+                            } else {
+                                currentR.appendChild(rChild.cloneNode(true));
+                            }
+                        }
+                    }
+                } else {
+                    currentP.appendChild(child.cloneNode(true));
+                }
+            }
+
+            for (let np = 0; np < newParas.length; np++) {
+                parent.insertBefore(newParas[np], pElem);
+            }
+            parent.removeChild(pElem);
+        }
+    }
+
+    function convertChoiceTablesToParagraphs(xmlDoc) {
+        const CHOICE_LABEL_RE = /^\s*(?:\()?([A-Ha-h])\s*[.:)/\-]\s*/;
+        const body = getChildByTagName(xmlDoc.documentElement, "body");
+        if (!body) return;
+
+        const tables = Array.from(body.getElementsByTagNameNS(NS.w, "tbl"));
+        const tablesToProcess = [];
+
+        for (let t = 0; t < tables.length; t++) {
+            const table = tables[t];
+            let choiceCellsCount = 0;
+            let totalCells = 0;
+            const cells = table.getElementsByTagNameNS(NS.w, "tc");
+            for (let c = 0; c < cells.length; c++) {
+                totalCells++;
+                const text = cells[c].textContent.trim();
+                if (CHOICE_LABEL_RE.test(text)) {
+                    choiceCellsCount++;
+                }
+            }
+
+            if (choiceCellsCount >= 2 && choiceCellsCount >= totalCells * 0.5) {
+                tablesToProcess.push(table);
+            }
+        }
+
+        for (let t = 0; t < tablesToProcess.length; t++) {
+            const table = tablesToProcess[t];
+            const parent = table.parentNode;
+            if (!parent) continue;
+
+            const cells = table.getElementsByTagNameNS(NS.w, "tc");
+            for (let c = 0; c < cells.length; c++) {
+                const paras = getChildrenByTagName(cells[c], "p");
+                for (let p = 0; p < paras.length; p++) {
+                    parent.insertBefore(paras[p], table);
+                }
+            }
+            parent.removeChild(table);
+        }
+    }
+
     function extractChoiceLabelInfo(pNode) {
         const text = getParagraphText(pNode).trim();
         if (!text) return null;
@@ -402,23 +523,63 @@
         }
     }
 
+    function cleanEmptyParagraphs(xmlDoc) {
+        const body = getChildByTagName(xmlDoc.documentElement, "body");
+        if (!body) return;
+
+        const paras = Array.from(body.getElementsByTagNameNS(NS.w, "p"));
+        for (let i = 0; i < paras.length; i++) {
+            const p = paras[i];
+            const text = getParagraphText(p).trim();
+            if (text.length > 0) continue;
+            if (findDescendants(p, "drawing").length > 0) continue;
+            if (findDescendants(p, "pict").length > 0) continue;
+            if (findDescendants(p, "oMath").length > 0) continue;
+            if (findDescendants(p, "object").length > 0) continue;
+
+            if (p.parentNode) {
+                p.parentNode.removeChild(p);
+            }
+        }
+    }
+
     function compactDocumentChoices(xmlDoc, layoutMode = "auto") {
+        const body = getChildByTagName(xmlDoc.documentElement, "body");
+        if (!body) return { totalGroups: 0, compactedCount: 0 };
+
+        // 1. Chuyển đổi bảng chứa phương án trắc nghiệm thành các đoạn văn
+        convertChoiceTablesToParagraphs(xmlDoc);
+
+        // 2. Tách các ngắt dòng mềm <w:br/> thành các đoạn văn riêng biệt
+        splitParagraphsAtBr(xmlDoc);
+
+        // 3. Dọn dẹp triệt để tất cả các dòng trống rác xen kẽ
+        cleanEmptyParagraphs(xmlDoc);
+
         if (layoutMode === "split" || layoutMode === "1_per_line") {
             return { totalGroups: 0, compactedCount: 0 };
         }
 
-        const body = getChildByTagName(xmlDoc.documentElement, "body");
-        if (!body) return { totalGroups: 0, compactedCount: 0 };
-
         const allParas = window.XmlUtils.getAllParagraphsInDoc(body);
         const groups = [];
         let currentGroup = [];
+        let currentEmptyParas = [];
         let currentIsLower = false;
         let currentExpectedIdx = 0;
         let currentParent = null;
 
         for (let i = 0; i < allParas.length; i++) {
             const p = allParas[i];
+
+            // Nếu là đoạn văn hoàn toàn rỗng (thường do thẻ <w:br/> kép tạo ra)
+            if (isParagraphEmpty(p)) {
+                // Nếu đang gom một nhóm phương án (đã có ít nhất A), lưu lại đoạn rỗng để xóa sau
+                if (currentGroup.length > 0) {
+                    currentEmptyParas.push(p);
+                }
+                continue; // Tuyệt đối không hủy nhóm khi gặp dòng rỗng!
+            }
+
             const info = extractChoiceLabelInfo(p);
             const pParent = p.parentNode;
 
@@ -435,8 +596,9 @@
                     currentExpectedIdx++;
                 } else {
                     if (currentGroup.length >= 2) {
-                        groups.push({ isLower: currentIsLower, paras: currentGroup });
+                        groups.push({ isLower: currentIsLower, paras: currentGroup, emptyParas: currentEmptyParas });
                     }
+                    currentEmptyParas = [];
                     if (info.index === 0) {
                         currentGroup = [p];
                         currentIsLower = info.isLower;
@@ -449,22 +611,34 @@
                 }
             } else {
                 if (currentGroup.length >= 2) {
-                    groups.push({ isLower: currentIsLower, paras: currentGroup });
+                    groups.push({ isLower: currentIsLower, paras: currentGroup, emptyParas: currentEmptyParas });
                 }
                 currentGroup = [];
+                currentEmptyParas = [];
                 currentParent = null;
             }
         }
 
         if (currentGroup.length >= 2) {
-            groups.push({ isLower: currentIsLower, paras: currentGroup });
+            groups.push({ isLower: currentIsLower, paras: currentGroup, emptyParas: currentEmptyParas });
         }
 
         const totalGroups = groups.length;
         let compactedCount = 0;
 
         for (let i = 0; i < groups.length; i++) {
-            const { paras } = groups[i];
+            const { paras, emptyParas } = groups[i];
+
+            // Dọn dẹp triệt để các đoạn văn rỗng xen kẽ giữa các phương án
+            if (emptyParas && emptyParas.length > 0) {
+                for (let ep = 0; ep < emptyParas.length; ep++) {
+                    const emptyElem = emptyParas[ep];
+                    if (emptyElem.parentNode) {
+                        emptyElem.parentNode.removeChild(emptyElem);
+                    }
+                }
+            }
+
             const rows = decideGroupLayout(paras, layoutMode);
 
             if (rows.length < paras.length) {

@@ -16,6 +16,7 @@
   
   <!-- App Stylesheet -->
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
 
@@ -34,6 +35,8 @@
       </a>
 
       <div class="header-actions">
+        <!-- Google Auth & User Badge -->
+        <div id="headerAuthContainer" class="auth-header-wrapper"></div>
         <button id="themeToggleBtn" class="theme-toggle-btn" title="Chuyển đổi giao diện Sáng / Tối">
           <i class="fa-solid fa-moon"></i>
         </button>
@@ -79,6 +82,9 @@
         </button>
       </nav>
     </div>
+
+    <!-- License Gate Alert Banner -->
+    <div id="licenseGateContainer"></div>
 
     <!-- Main Workbench (Tabs: general, english, nd30, compactor, batch) -->
     <main id="mainWorkbench" class="workbench-grid">
@@ -504,6 +510,149 @@
 
   </div>
 
+  <!-- Admin Dashboard Modal -->
+  <div id="adminDashboardModal" class="admin-modal-overlay">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <div class="admin-modal-title">
+          <i class="fa-solid fa-user-shield"></i>
+          <span>Quản Trị Người Dùng & Phê Duyệt Bản Quyền</span>
+        </div>
+        <button class="admin-modal-close" onclick="window.AdminPanel.closeDashboard()" title="Đóng">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <!-- Admin Stats Bar -->
+        <div class="admin-stats-bar">
+          <div class="admin-stat-card">
+            <div class="admin-stat-val" id="statTotalUsers">0</div>
+            <div class="admin-stat-lbl">Tổng tài khoản</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-val" style="color: #f59e0b;" id="statPendingUsers">0</div>
+            <div class="admin-stat-lbl">Chờ duyệt</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-val" style="color: #06b6d4;" id="statYearlyUsers">0</div>
+            <div class="admin-stat-lbl">Gói 1 Năm</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-val" style="color: #10b981;" id="statLifetimeUsers">0</div>
+            <div class="admin-stat-lbl">Gói Vĩnh Viễn</div>
+          </div>
+        </div>
+
+        <!-- Toolbar: Search & Filters -->
+        <div class="admin-toolbar">
+          <div class="admin-search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="adminUserSearch" class="admin-search-input" placeholder="Tìm theo tên hoặc email...">
+          </div>
+          <div class="admin-filter-group">
+            <button class="btn-filter-pill admin-filter-btn active" data-filter="all">Tất cả</button>
+            <button class="btn-filter-pill admin-filter-btn" data-filter="pending">Chờ duyệt</button>
+            <button class="btn-filter-pill admin-filter-btn" data-filter="1_year">1 Năm</button>
+            <button class="btn-filter-pill admin-filter-btn" data-filter="lifetime">Vĩnh viễn</button>
+            <button class="btn-filter-pill admin-filter-btn" data-filter="blocked">Đã khóa</button>
+          </div>
+          <button class="btn-action-sm btn-approve-year" onclick="window.AdminPanel.showConfigModal()" title="Cài đặt Firebase">
+            <i class="fa-solid fa-gear"></i> Cấu hình Firebase
+          </button>
+        </div>
+
+        <!-- Users Table -->
+        <div class="admin-table-wrapper">
+          <table class="admin-user-table">
+            <thead>
+              <tr>
+                <th>Người dùng</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+                <th>Gói bản quyền</th>
+                <th>Hạn sử dụng</th>
+                <th>Hành động phê duyệt</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                  Đang tải danh sách người dùng...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Configuration Modal -->
+  <div id="firebaseConfigModal" class="admin-modal-overlay">
+    <div class="admin-modal-container" style="max-width: 650px;">
+      <div class="admin-modal-header">
+        <div class="admin-modal-title">
+          <i class="fa-solid fa-gear"></i>
+          <span>Cài Đặt Cấu Hình Firebase</span>
+        </div>
+        <button class="admin-modal-close" onclick="window.AdminPanel.closeConfigModal()" title="Đóng">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body">
+        <div id="fbCfgNotice" class="firebase-cfg-notice" style="display: none;"></div>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Dán các thông số dự án lấy từ <strong>Firebase Console &rarr; Project settings &rarr; Your apps &rarr; Web app</strong>.
+          Cấu hình này sẽ được lưu an toàn trong trình duyệt của bạn (localStorage).
+        </p>
+
+        <div class="firebase-cfg-grid">
+          <div class="firebase-cfg-field">
+            <label for="fbCfgApiKey">apiKey *</label>
+            <input type="text" id="fbCfgApiKey" placeholder="AIzaSy...">
+          </div>
+          <div class="firebase-cfg-field">
+            <label for="fbCfgProjectId">projectId *</label>
+            <input type="text" id="fbCfgProjectId" placeholder="exam-normalizer-123">
+          </div>
+          <div class="firebase-cfg-field">
+            <label for="fbCfgAuthDomain">authDomain</label>
+            <input type="text" id="fbCfgAuthDomain" placeholder="exam-normalizer-123.firebaseapp.com">
+          </div>
+          <div class="firebase-cfg-field">
+            <label for="fbCfgStorageBucket">storageBucket</label>
+            <input type="text" id="fbCfgStorageBucket" placeholder="exam-normalizer-123.firebasestorage.app">
+          </div>
+          <div class="firebase-cfg-field">
+            <label for="fbCfgMessagingSenderId">messagingSenderId</label>
+            <input type="text" id="fbCfgMessagingSenderId" placeholder="1234567890">
+          </div>
+          <div class="firebase-cfg-field">
+            <label for="fbCfgAppId">appId</label>
+            <input type="text" id="fbCfgAppId" placeholder="1:1234567890:web:abcdef">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+          <button type="button" class="btn-action-sm btn-block" onclick="window.AdminPanel.clearConfig()">
+            <i class="fa-solid fa-trash"></i> Xóa cấu hình
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="window.AdminPanel.closeConfigModal()">Đóng</button>
+            <button type="button" class="btn btn-primary" onclick="window.AdminPanel.saveConfigFromForm()">
+              <i class="fa-solid fa-floppy-disk"></i> Lưu & Áp dụng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK v10 (Compat version for pure browser/vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
   <!-- Local and CDN Fallback Scripts -->
   <script src="js/lib/jszip.min.js"></script>
   <script>
@@ -518,6 +667,11 @@
       document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"><\/script>');
     }
   </script>
+
+  <!-- Firebase Config, Auth & Admin Modules -->
+  <script src="js/core/firebase_config.js?v=2.2"></script>
+  <script src="js/core/firebase_auth.js?v=2.2"></script>
+  <script src="js/core/admin_panel.js?v=2.2"></script>
 
   <!-- Core Normalizer Engine Modules -->
   <script src="js/core/xml_utils.js?v=2.2"></script>

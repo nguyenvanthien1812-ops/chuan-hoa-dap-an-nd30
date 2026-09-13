@@ -275,6 +275,18 @@ document.addEventListener('DOMContentLoaded', () => {
     btnProcess.addEventListener('click', async () => {
         if (selectedFiles.length === 0) return;
 
+        // Check license authorization before processing
+        if (window.FirebaseAuth && typeof window.FirebaseAuth.checkLicenseAccess === 'function') {
+            const license = window.FirebaseAuth.checkLicenseAccess();
+            if (!license.allowed) {
+                showToast(license.message || 'Bạn chưa có quyền sử dụng tính năng này.', 'error');
+                if (window.FirebaseAuth.renderLicenseGateBanner) {
+                    window.FirebaseAuth.renderLicenseGateBanner();
+                }
+                return;
+            }
+        }
+
         btnProcess.disabled = true;
         progressBox.style.display = 'flex';
         resultsCard.style.display = 'none';
@@ -534,4 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     }
+
+    window.showToast = showToast;
 });

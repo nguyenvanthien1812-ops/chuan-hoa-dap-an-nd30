@@ -556,9 +556,6 @@
             <button class="btn-filter-pill admin-filter-btn" data-filter="lifetime">Vĩnh viễn</button>
             <button class="btn-filter-pill admin-filter-btn" data-filter="blocked">Đã khóa</button>
           </div>
-          <button class="btn-action-sm btn-approve-year" onclick="window.AdminPanel.showConfigModal()" title="Cài đặt Firebase">
-            <i class="fa-solid fa-gear"></i> Cấu hình Firebase
-          </button>
         </div>
 
         <!-- Users Table -->
@@ -582,67 +579,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Firebase Configuration Modal -->
-  <div id="firebaseConfigModal" class="admin-modal-overlay">
-    <div class="admin-modal-container" style="max-width: 650px;">
-      <div class="admin-modal-header">
-        <div class="admin-modal-title">
-          <i class="fa-solid fa-gear"></i>
-          <span>Cài Đặt Cấu Hình Firebase</span>
-        </div>
-        <button class="admin-modal-close" onclick="window.AdminPanel.closeConfigModal()" title="Đóng">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="admin-modal-body">
-        <div id="fbCfgNotice" class="firebase-cfg-notice" style="display: none;"></div>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
-          Dán các thông số dự án lấy từ <strong>Firebase Console &rarr; Project settings &rarr; Your apps &rarr; Web app</strong>.
-          Cấu hình này sẽ được lưu an toàn trong trình duyệt của bạn (localStorage).
-        </p>
-
-        <div class="firebase-cfg-grid">
-          <div class="firebase-cfg-field">
-            <label for="fbCfgApiKey">apiKey *</label>
-            <input type="text" id="fbCfgApiKey" placeholder="AIzaSy...">
-          </div>
-          <div class="firebase-cfg-field">
-            <label for="fbCfgProjectId">projectId *</label>
-            <input type="text" id="fbCfgProjectId" placeholder="exam-normalizer-123">
-          </div>
-          <div class="firebase-cfg-field">
-            <label for="fbCfgAuthDomain">authDomain</label>
-            <input type="text" id="fbCfgAuthDomain" placeholder="exam-normalizer-123.firebaseapp.com">
-          </div>
-          <div class="firebase-cfg-field">
-            <label for="fbCfgStorageBucket">storageBucket</label>
-            <input type="text" id="fbCfgStorageBucket" placeholder="exam-normalizer-123.firebasestorage.app">
-          </div>
-          <div class="firebase-cfg-field">
-            <label for="fbCfgMessagingSenderId">messagingSenderId</label>
-            <input type="text" id="fbCfgMessagingSenderId" placeholder="1234567890">
-          </div>
-          <div class="firebase-cfg-field">
-            <label for="fbCfgAppId">appId</label>
-            <input type="text" id="fbCfgAppId" placeholder="1:1234567890:web:abcdef">
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
-          <button type="button" class="btn-action-sm btn-block" onclick="window.AdminPanel.clearConfig()">
-            <i class="fa-solid fa-trash"></i> Xóa cấu hình
-          </button>
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-secondary" onclick="window.AdminPanel.closeConfigModal()">Đóng</button>
-            <button type="button" class="btn btn-primary" onclick="window.AdminPanel.saveConfigFromForm()">
-              <i class="fa-solid fa-floppy-disk"></i> Lưu & Áp dụng
-            </button>
-          </div>
         </div>
       </div>
     </div>

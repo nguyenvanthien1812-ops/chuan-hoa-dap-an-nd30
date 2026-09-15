@@ -160,11 +160,7 @@
         if (!auth) {
             const ok = initFirebase();
             if (!ok) {
-                if (window.AdminPanel && typeof window.AdminPanel.showConfigModal === 'function') {
-                    window.AdminPanel.showConfigModal("Bạn chưa cài đặt cấu hình Firebase. Vui lòng dán thông tin dự án Firebase của bạn vào bên dưới.");
-                } else {
-                    alert("Chưa cài đặt cấu hình Firebase. Vui lòng mở bảng điều khiển để cài đặt Firebase.");
-                }
+                alert("Lỗi kết nối Firebase Authentication. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình Firebase!");
                 return;
             }
         }
@@ -340,20 +336,10 @@
                     <i class="fa-brands fa-google"></i>
                     <span>Đăng nhập</span>
                 </button>
-                ${!isCfg ? `
-                    <button id="btnSetupFirebase" class="btn-action-sm btn-approve-year" style="margin-left: 6px;" title="Cài đặt dự án Firebase">
-                        <i class="fa-solid fa-gear"></i> Cấu hình Firebase
-                    </button>
-                ` : ''}
             `;
 
             const btnLogin = document.getElementById("btnLoginGoogle");
             if (btnLogin) btnLogin.onclick = loginWithGoogle;
-
-            const btnSetup = document.getElementById("btnSetupFirebase");
-            if (btnSetup && window.AdminPanel) {
-                btnSetup.onclick = () => window.AdminPanel.showConfigModal();
-            }
             return;
         }
 

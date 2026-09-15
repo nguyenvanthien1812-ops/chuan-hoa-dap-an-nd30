@@ -51,18 +51,40 @@
 
         try {
             unsubscribeUsers = db.collection("users")
-                .orderBy("createdAt", "desc")
                 .onSnapshot((snapshot) => {
                     usersList = [];
                     snapshot.forEach(doc => {
-                        usersList.push(doc.data());
+                        const data = doc.data();
+                        if (data) {
+                            usersList.push({ ...data, uid: data.uid || doc.id });
+                        }
                     });
+                    // Sắp xếp theo ngày tạo mới nhất (client-side)
+                    usersList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                     renderUserStats();
                     renderUsersTable();
                 }, (error) => {
                     console.error("Lỗi khi tải danh sách users từ Firestore:", error);
+                    let helpMsg = '';
+                    if (error.code === 'permission-denied' || (error.message && error.message.includes('permission'))) {
+                        helpMsg = `
+                            <div style="margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--text-secondary);">
+                                <strong>👉 Nguyên nhân:</strong> Firestore Security Rules trên Firebase Console đang chặn quyền đọc dữ liệu.<br>
+                                <strong>👉 Cách khắc phục:</strong> Vào <strong>Firebase Console &rarr; Firestore Database &rarr; Tab Rules</strong>, dán:
+                                <pre style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin: 8px 0; font-family: monospace; color: #10b981; text-align: left;">rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}</pre>
+                                rồi bấm nút <strong>Publish</strong>.
+                            </div>
+                        `;
+                    }
                     if (tableBody) {
-                        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 24px;">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--accent-rose); padding: 24px;">
+                                    <div><i class="fa-solid fa-triangle-exclamation"></i> <strong>Lỗi tải dữ liệu:</strong> ${error.message}</div>
+                                    ${helpMsg}
+                                </td>
+                            </tr>
+                        `;
                     }
                 });
         } catch (e) {

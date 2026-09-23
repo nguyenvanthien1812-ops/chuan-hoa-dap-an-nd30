@@ -867,6 +867,8 @@
         const autoKey = options.auto_key !== false;
         const boldAsCorrect = options.bold_as_correct === true;
         const choiceLayout = options.choice_layout || "split";
+        const choiceIndent = options.choice_indent !== false;
+        const indentDxa = choiceIndent ? (options.indent_dxa !== undefined ? options.indent_dxa : 567) : 0;
 
         const docXmlStr = await zip.file("word/document.xml").async("string");
         const xmlDoc = window.XmlUtils.parseXml(docXmlStr);
@@ -1068,8 +1070,8 @@
 
         // 4. Choice Compacting
         let compactedMsg = "";
-        if (choiceLayout && choiceLayout !== "split") {
-            const { compactedCount } = window.ChoiceCompactor.compactDocumentChoices(xmlDoc, choiceLayout);
+        if (choiceLayout && (choiceLayout !== "split" || indentDxa > 0)) {
+            const { compactedCount } = window.ChoiceCompactor.compactDocumentChoices(xmlDoc, choiceLayout, indentDxa);
             if (compactedCount > 0) {
                 compactedMsg = ` Đã dồn dòng ${compactedCount} câu hỏi.`;
             }

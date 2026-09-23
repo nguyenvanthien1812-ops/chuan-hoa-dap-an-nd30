@@ -366,7 +366,7 @@
         }
     }
 
-    function resetParagraphFormattingForCompact(pNode, xmlDoc) {
+    function resetParagraphFormattingForCompact(pNode, xmlDoc, indentDxa = 0) {
         let pPr = getChildByTagName(pNode, "pPr");
         if (!pPr) {
             pPr = createWordElement(xmlDoc, "pPr");
@@ -376,7 +376,7 @@
         let ind = getChildByTagName(pPr, "ind");
         if (ind) pPr.removeChild(ind);
         ind = createWordElement(xmlDoc, "ind");
-        ind.setAttributeNS(NS.w, "w:left", "0");
+        ind.setAttributeNS(NS.w, "w:left", (indentDxa || 0).toString());
         ind.setAttributeNS(NS.w, "w:firstLine", "0");
         ind.setAttributeNS(NS.w, "w:right", "0");
         pPr.appendChild(ind);
@@ -411,8 +411,8 @@
         pPr.appendChild(tabsElem);
     }
 
-    function mergeParagraphsWithTab(targetP, sourceParas, tabPositions, xmlDoc) {
-        resetParagraphFormattingForCompact(targetP, xmlDoc);
+    function mergeParagraphsWithTab(targetP, sourceParas, tabPositions, xmlDoc, indentDxa = 0) {
+        resetParagraphFormattingForCompact(targetP, xmlDoc, indentDxa);
         cleanTrailingWhitespaceAndTabs(targetP);
 
         for (let i = 0; i < sourceParas.length; i++) {
@@ -543,7 +543,7 @@
         }
     }
 
-    function compactDocumentChoices(xmlDoc, layoutMode = "auto") {
+    function compactDocumentChoices(xmlDoc, layoutMode = "auto", indentDxa = 0) {
         const body = getChildByTagName(xmlDoc.documentElement, "body");
         if (!body) return { totalGroups: 0, compactedCount: 0 };
 
@@ -555,10 +555,6 @@
 
         // 3. Dọn dẹp triệt để tất cả các dòng trống rác xen kẽ
         cleanEmptyParagraphs(xmlDoc);
-
-        if (layoutMode === "split" || layoutMode === "1_per_line") {
-            return { totalGroups: 0, compactedCount: 0 };
-        }
 
         const allParas = window.XmlUtils.getAllParagraphsInDoc(body);
         const groups = [];
@@ -626,6 +622,24 @@
         const totalGroups = groups.length;
         let compactedCount = 0;
 
+        if (layoutMode === "split" || layoutMode === "1_per_line") {
+            for (let i = 0; i < groups.length; i++) {
+                const { paras, emptyParas } = groups[i];
+                if (emptyParas && emptyParas.length > 0) {
+                    for (let ep = 0; ep < emptyParas.length; ep++) {
+                        const emptyElem = emptyParas[ep];
+                        if (emptyElem.parentNode) {
+                            emptyElem.parentNode.removeChild(emptyElem);
+                        }
+                    }
+                }
+                for (let p = 0; p < paras.length; p++) {
+                    resetParagraphFormattingForCompact(paras[p], xmlDoc, indentDxa);
+                }
+            }
+            return { totalGroups, compactedCount: 0 };
+        }
+
         for (let i = 0; i < groups.length; i++) {
             const { paras, emptyParas } = groups[i];
 
@@ -648,7 +662,7 @@
             for (let j = 0; j < rows.length; j++) {
                 const row = rows[j];
                 if (row.length <= 1) {
-                    resetParagraphFormattingForCompact(row[0], xmlDoc);
+                    resetParagraphFormattingForCompact(row[0], xmlDoc, indentDxa);
                     continue;
                 }
 
@@ -657,30 +671,30 @@
                 const numCols = row.length;
                 let tabs;
                 if (numCols === 4) {
-                    tabs = TAB_STOPS_4_COLS;
+                    tabs = TAB_STOPS_4_COLS.map(pos => pos + indentDxa);
                 } else if (numCols === 2) {
-                    tabs = TAB_STOPS_2_COLS;
+                    tabs = TAB_STOPS_2_COLS.map(pos => pos + indentDxa);
                 } else if (numCols === 3) {
-                    tabs = TAB_STOPS_3_COLS;
+                    tabs = TAB_STOPS_3_COLS.map(pos => pos + indentDxa);
                 } else {
                     tabs = [];
                     for (let c = 1; c < numCols; c++) {
-                        tabs.push(Math.round((9000 / numCols) * c));
+                        tabs.push(indentDxa + Math.round((9000 / numCols) * c));
                     }
                 }
 
-                mergeParagraphsWithTab(targetP, sourceParas, tabs, xmlDoc);
+                mergeParagraphsWithTab(targetP, sourceParas, tabs, xmlDoc, indentDxa);
             }
         }
 
         return { totalGroups, compactedCount };
     }
 
-    async function compactDocxChoices(zip, layoutMode = "auto") {
+    async function compactDocxChoices(zip, layoutMode = "auto", indentDxa = 0) {
         const docXmlStr = await zip.file("word/document.xml").async("string");
         const xmlDoc = window.XmlUtils.parseXml(docXmlStr);
 
-        const { totalGroups, compactedCount } = compactDocumentChoices(xmlDoc, layoutMode);
+        const { totalGroups, compactedCount } = compactDocumentChoices(xmlDoc, layoutMode, indentDxa);
 
         const newDocXmlStr = window.XmlUtils.serializeXml(xmlDoc);
         zip.file("word/document.xml", newDocXmlStr);
@@ -693,11 +707,12 @@
             "split": "Tách 1 phương án / dòng"
         };
         const modeText = modeMap[layoutMode] || layoutMode;
+        const indentInfo = indentDxa > 0 ? ` (thụt lề ${(indentDxa / 567).toFixed(2)}cm)` : "";
         return {
             success: true,
             totalGroups,
             compactedCount,
-            message: `Đã dồn dòng ${compactedCount}/${totalGroups} câu hỏi theo chế độ '${modeText}'.`
+            message: `Đã dồn dòng ${compactedCount}/${totalGroups} câu hỏi theo chế độ '${modeText}'${indentInfo}.`
         };
     }
 

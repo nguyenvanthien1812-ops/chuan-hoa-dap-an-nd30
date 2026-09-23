@@ -997,3 +997,24 @@ input:checked + .slider:before {
 .app-footer a:hover {
   text-decoration: underline;
 }
+
+/* Custom Select Small for Options */
+.custom-select-sm {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 6px);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.custom-select-sm:hover,
+.custom-select-sm:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+

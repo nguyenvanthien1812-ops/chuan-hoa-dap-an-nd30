@@ -354,10 +354,11 @@ def _collapse_consecutive_tabs(p: Paragraph):
             p_elem.remove(r)
 
 
-def _reset_paragraph_formatting_for_compact(p: Paragraph):
+def _reset_paragraph_formatting_for_compact(p: Paragraph, indent_dxa: int = 0):
     """
     Xóa bỏ lề thụt dòng (firstLine, left, right indent) và ép căn trái (left align)
     để các Tab Stop hoạt động chính xác từ mép lề trái, tránh bị co chữ / nhảy dòng.
+    Nếu indent_dxa > 0 thì thiết lập lề thụt đầu dòng tương ứng.
     """
     p_elem = p._element
     pPr = p_elem.find(qn('w:pPr'))
@@ -365,12 +366,12 @@ def _reset_paragraph_formatting_for_compact(p: Paragraph):
         pPr = OxmlElement('w:pPr')
         p_elem.insert(0, pPr)
 
-    # 1. Reset thuộc tính thụt dòng (w:ind) về 0
+    # 1. Reset thuộc tính thụt dòng (w:ind)
     ind = pPr.find(qn('w:ind'))
     if ind is not None:
         pPr.remove(ind)
     new_ind = OxmlElement('w:ind')
-    new_ind.set(qn('w:left'), '0')
+    new_ind.set(qn('w:left'), str(indent_dxa or 0))
     new_ind.set(qn('w:firstLine'), '0')
     new_ind.set(qn('w:right'), '0')
     pPr.append(new_ind)
@@ -410,12 +411,12 @@ def _set_paragraph_tabs(p: Paragraph, tab_positions: List[int]):
     pPr.append(tabs_elem)
 
 
-def _merge_paragraphs_with_tab(target_p: Paragraph, source_paras: List[Paragraph], tab_positions: List[int]):
+def _merge_paragraphs_with_tab(target_p: Paragraph, source_paras: List[Paragraph], tab_positions: List[int], indent_dxa: int = 0):
     """
     Gộp các source_paras vào target_p, phân cách bằng ký tự Tab.
     Sau đó xóa bỏ các source_paras khỏi tài liệu và thiết lập Tab Stops chuẩn.
     """
-    _reset_paragraph_formatting_for_compact(target_p)
+    _reset_paragraph_formatting_for_compact(target_p, indent_dxa)
     _clean_trailing_whitespace_and_tabs(target_p)
     target_elem = target_p._element
 
@@ -558,13 +559,14 @@ def _clean_empty_paragraphs(doc: Document):
                 parent.remove(p_elem)
 
 
-def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[int, int]:
+def compact_document_choices(doc: Document, layout_mode: str = "auto", indent_dxa: int = 0) -> Tuple[int, int]:
     """
     Quét toàn bộ tài liệu Word và dồn dòng các phương án trắc nghiệm theo layout_mode.
     
     Args:
         doc: Đối tượng docx.Document
         layout_mode: 'auto', '4_per_line', '2_per_line', '1_per_line', 'split'
+        indent_dxa: Khoảng cách thụt lề đầu dòng (twips), ví dụ 567 cho 1.0cm
         
     Returns:
         (total_groups_found, total_groups_compacted)
@@ -577,10 +579,6 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
 
     # 3. Dọn dẹp triệt để tất cả các dòng trống rác xen kẽ
     _clean_empty_paragraphs(doc)
-
-    if layout_mode in ("split", "1_per_line"):
-        logger.info("Chế độ bố cục là 'split' / '1_per_line' - đã dọn dẹp dòng trống, không thực hiện dồn dòng.")
-        return 0, 0
 
     all_paras = list(doc.paragraphs)
     
@@ -641,6 +639,17 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
     total_groups = len(groups)
     compacted_count = 0
 
+    if layout_mode in ("split", "1_per_line"):
+        for is_lower, paras, empty_paras in groups:
+            for ep in empty_paras:
+                ep_parent = ep._element.getparent()
+                if ep_parent is not None:
+                    ep_parent.remove(ep._element)
+            for p in paras:
+                _reset_paragraph_formatting_for_compact(p, indent_dxa)
+        logger.info("Chế độ bố cục là 'split' / '1_per_line' - đã định dạng thụt lề cho từng phương án.")
+        return total_groups, 0
+
     for is_lower, paras, empty_paras in groups:
         # Dọn dẹp các paragraph rỗng xen kẽ
         for ep in empty_paras:
@@ -658,24 +667,24 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
         for row in rows:
             if len(row) <= 1:
                 # Reset định dạng ngay cả khi giữ 1 dòng để tránh bị lệch lề
-                _reset_paragraph_formatting_for_compact(row[0])
+                _reset_paragraph_formatting_for_compact(row[0], indent_dxa)
                 continue
 
             target_p = row[0]
             source_paras = row[1:]
             
-            # Xác định vị trí Tab Stops theo số lượng cột trong dòng
+            # Xác định vị trí Tab Stops theo số lượng cột trong dòng (cộng thêm indent_dxa)
             num_cols = len(row)
             if num_cols == 4:
-                tabs = TAB_STOPS_4_COLS
+                tabs = [pos + indent_dxa for pos in TAB_STOPS_4_COLS]
             elif num_cols == 2:
-                tabs = TAB_STOPS_2_COLS
+                tabs = [pos + indent_dxa for pos in TAB_STOPS_2_COLS]
             elif num_cols == 3:
-                tabs = TAB_STOPS_3_COLS
+                tabs = [pos + indent_dxa for pos in TAB_STOPS_3_COLS]
             else:
-                tabs = [int(9000 / num_cols * c) for c in range(1, num_cols)]
+                tabs = [indent_dxa + int(9000 / num_cols * c) for c in range(1, num_cols)]
 
-            _merge_paragraphs_with_tab(target_p, source_paras, tabs)
+            _merge_paragraphs_with_tab(target_p, source_paras, tabs, indent_dxa)
 
     logger.info(f"Đã xử lý dồn dòng: Tìm thấy {total_groups} nhóm câu hỏi, đã dồn {compacted_count} nhóm.")
     return total_groups, compacted_count
@@ -684,7 +693,8 @@ def compact_document_choices(doc: Document, layout_mode: str = "auto") -> Tuple[
 def compact_docx_choices(
     input_doc_or_path: Union[str, Document],
     output_path: Optional[str] = None,
-    layout_mode: str = "auto"
+    layout_mode: str = "auto",
+    indent_dxa: int = 0
 ) -> Tuple[bool, int, str]:
     """
     Hàm giao diện cấp cao để dồn dòng phương án trắc nghiệm.
@@ -693,6 +703,7 @@ def compact_docx_choices(
         input_doc_or_path: Đường dẫn file Word (.docx) hoặc đối tượng Document
         output_path: Đường dẫn lưu file kết quả (nếu truyền đường dẫn input)
         layout_mode: 'auto', '4_per_line', '2_per_line', '1_per_line', 'split'
+        indent_dxa: Khoảng cách thụt lề đầu dòng (twips)
         
     Returns:
         (success, compacted_count, message)
@@ -705,7 +716,7 @@ def compact_docx_choices(
             doc = input_doc_or_path
             save_needed = False
 
-        total_groups, compacted_count = compact_document_choices(doc, layout_mode)
+        total_groups, compacted_count = compact_document_choices(doc, layout_mode, indent_dxa)
 
         if save_needed:
             save_target = output_path or input_doc_or_path
@@ -719,7 +730,8 @@ def compact_docx_choices(
             "split": "Tách 1 phương án / dòng"
         }
         mode_text = mode_name_map.get(layout_mode, layout_mode)
-        msg = f"Đã dồn dòng {compacted_count}/{total_groups} câu hỏi theo chế độ '{mode_text}'."
+        indent_info = f" (thụt lề {indent_dxa/567:.2f}cm)" if indent_dxa > 0 else ""
+        msg = f"Đã dồn dòng {compacted_count}/{total_groups} câu hỏi theo chế độ '{mode_text}'{indent_info}."
         return True, compacted_count, msg
 
     except Exception as e:

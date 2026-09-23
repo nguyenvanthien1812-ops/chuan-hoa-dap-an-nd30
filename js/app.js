@@ -321,21 +321,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const auto_key = document.getElementById('genAutoKey').checked;
             const bold_as_correct = document.getElementById('genBoldAsCorrect').checked;
             const choice_layout = document.querySelector('input[name="genChoiceLayout"]:checked')?.value || 'auto';
+            const choice_indent = document.getElementById('genChoiceIndent')?.checked !== false;
+            const indent_dxa = choice_indent ? parseInt(document.getElementById('genChoiceIndentSize')?.value || '567', 10) : 0;
 
             result = await window.Normalizer.normalizeDocx(zip, {
                 auto_key,
                 bold_as_correct,
-                choice_layout
+                choice_layout,
+                choice_indent,
+                indent_dxa
             });
         } else if (currentTab === 'english') {
             const auto_key = document.getElementById('engAutoKey').checked;
             const bold_as_correct = document.getElementById('engBoldAsCorrect').checked;
             const choice_layout = document.querySelector('input[name="engChoiceLayout"]:checked')?.value || 'auto';
+            const choice_indent = document.getElementById('engChoiceIndent')?.checked !== false;
+            const indent_dxa = choice_indent ? parseInt(document.getElementById('engChoiceIndentSize')?.value || '567', 10) : 0;
 
             result = await window.EnglishNormalizer.normalizeEnglishDocx(zip, {
                 auto_key,
                 bold_as_correct,
-                choice_layout
+                choice_layout,
+                choice_indent,
+                indent_dxa
             });
         } else if (currentTab === 'nd30') {
             const margin = document.getElementById('nd30Margin')?.checked !== false;
@@ -359,7 +367,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else if (currentTab === 'compactor') {
             const compactorMode = document.querySelector('input[name="compactorMode"]:checked')?.value || 'auto';
-            result = await window.ChoiceCompactor.compactDocxChoices(zip, compactorMode);
+            const choice_indent = document.getElementById('compactorChoiceIndent')?.checked !== false;
+            const indent_dxa = choice_indent ? parseInt(document.getElementById('compactorChoiceIndentSize')?.value || '567', 10) : 0;
+            result = await window.ChoiceCompactor.compactDocxChoices(zip, compactorMode, indent_dxa);
         }
 
         await updateProgress(85, 'Đang đóng gói file kết quả...');
@@ -396,6 +406,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalKeysFound = 0;
         let totalCompacted = 0;
 
+        const batch_choice_indent = document.getElementById('batchChoiceIndent')?.checked !== false;
+        const batch_indent_dxa = batch_choice_indent ? parseInt(document.getElementById('batchChoiceIndentSize')?.value || '567', 10) : 0;
+
         for (let i = 0; i < total; i++) {
             const file = selectedFiles[i];
             const percent = Math.round(((i + 0.2) / total) * 100);
@@ -406,9 +419,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let res = null;
             if (batchEngine === 'general') {
-                res = await window.Normalizer.normalizeDocx(zip, { auto_key: true, bold_as_correct: true, choice_layout: 'auto' });
+                res = await window.Normalizer.normalizeDocx(zip, { 
+                    auto_key: true, 
+                    bold_as_correct: true, 
+                    choice_layout: 'auto',
+                    choice_indent: batch_choice_indent,
+                    indent_dxa: batch_indent_dxa
+                });
             } else if (batchEngine === 'english') {
-                res = await window.EnglishNormalizer.normalizeEnglishDocx(zip, { auto_key: true, bold_as_correct: true, choice_layout: 'auto' });
+                res = await window.EnglishNormalizer.normalizeEnglishDocx(zip, { 
+                    auto_key: true, 
+                    bold_as_correct: true, 
+                    choice_layout: 'auto',
+                    choice_indent: batch_choice_indent,
+                    indent_dxa: batch_indent_dxa
+                });
             } else if (batchEngine === 'nd30') {
                 res = await window.Nd30Normalizer.normalizeDocumentNd30(zip, { 
                     margin: true, 
@@ -421,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     remove_empty_paras: true
                 });
             } else {
-                res = await window.ChoiceCompactor.compactDocxChoices(zip, 'auto');
+                res = await window.ChoiceCompactor.compactDocxChoices(zip, 'auto', batch_indent_dxa);
             }
 
             if (res && res.keyCount) totalKeysFound += res.keyCount;

@@ -1110,12 +1110,14 @@ def normalize_docx(input_path: str, output_path: str, options: dict) -> Tuple[bo
                                 p_idx += 1
                 p_idx += 1
 
-        # 4. Tùy chọn dồn dòng phương án (nếu layout_mode != "split")
+        # 4. Tùy chọn dồn dòng phương án
         choice_layout = options.get("choice_layout", "split")
+        choice_indent = options.get("choice_indent", True)
+        indent_dxa = options.get("indent_dxa", 567) if choice_indent else 0
         compacted_msg = ""
-        if choice_layout and choice_layout != "split":
+        if choice_layout and (choice_layout != "split" or indent_dxa > 0):
             from choice_compactor import compact_document_choices
-            total_g, compacted_count = compact_document_choices(doc, choice_layout)
+            total_g, compacted_count = compact_document_choices(doc, choice_layout, indent_dxa)
             if compacted_count > 0:
                 compacted_msg = f" Đã dồn dòng {compacted_count} câu hỏi."
 
